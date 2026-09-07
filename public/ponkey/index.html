@@ -7,6 +7,15 @@
 <meta name="description" content="キーボードをぽんぽんたたくと、おとやもじ、イラストがとびだすあそび。タップでも楽しめます。">
 <title>PonKey! — キーボードを好き放題たたこう</title>
 <style>
+  /* Typed properties let the gradient colors and centers interpolate smoothly. */
+  @property --h1 { syntax: "<number>"; inherits: true; initial-value: 312; }
+  @property --h2 { syntax: "<number>"; inherits: true; initial-value: 192; }
+  @property --h3 { syntax: "<number>"; inherits: true; initial-value: 48; }
+  @property --mx { syntax: "<length-percentage>"; inherits: true; initial-value: 50%; }
+  @property --my { syntax: "<length-percentage>"; inherits: true; initial-value: 42%; }
+  @property --kx { syntax: "<length-percentage>"; inherits: true; initial-value: 50%; }
+  @property --ky { syntax: "<length-percentage>"; inherits: true; initial-value: 50%; }
+
   :root {
     --mx: 50vw;
     --my: 42vh;
@@ -15,6 +24,14 @@
     --h1: 312;
     --h2: 192;
     --h3: 48;
+    transition:
+      --h1 3s ease-in-out,
+      --h2 3s ease-in-out,
+      --h3 3s ease-in-out,
+      --mx 1.5s ease-out,
+      --my 1.5s ease-out,
+      --kx 2s ease-out,
+      --ky 2s ease-out;
   }
 
   * { box-sizing: border-box; }
@@ -38,8 +55,7 @@
                  system-ui, -apple-system, sans-serif;
   }
 
-  /* Light-weight "Antigravity-ish" reactive background.
-     No canvas, no JS animation loop: only CSS gradients + transform/transition. */
+  /* Color and glow movement follow the smoothly transitioning root properties. */
   #bg {
     position: absolute;
     inset: -12%;
@@ -63,9 +79,6 @@
         hsl(calc(var(--h3) + 20), 48%, 12%));
     filter: saturate(1.18);
     transform: scale(1.06);
-    transition:
-      background-position .18s ease-out,
-      filter .22s ease-out;
   }
 
   #bg::before,
@@ -78,7 +91,6 @@
     filter: blur(70px);
     opacity: .26;
     will-change: transform;
-    transition: transform .22s ease-out, background .35s ease-out;
   }
 
   #bg::before {
@@ -417,7 +429,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    #bg::before, #bg::after { transition: none; }
+    :root { transition: none; }
     .thing { animation-duration: .35s !important; }
     .pile-key { animation-duration: .2s; }
   }
@@ -448,6 +460,8 @@
   "use strict";
 
   const root = document.documentElement;
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const canAnimateBackground = typeof CSS !== "undefined" && "registerProperty" in CSS;
   const stage = document.querySelector("#stage");
   const pile = document.querySelector("#pile");
   const start = document.querySelector("#start");
@@ -516,6 +530,8 @@
   }
 
   function setReactiveColor(x, y, seed = counter) {
+    // Keep a static background when smooth interpolation is unavailable or unwanted.
+    if (reducedMotion.matches || !canAnimateBackground) return;
     root.style.setProperty("--kx", `${x}px`);
     root.style.setProperty("--ky", `${y}px`);
     root.style.setProperty("--h1", String((seed * 47 + 300) % 360));
@@ -701,6 +717,7 @@
 
   // Mouse movement changes only CSS variables, and is capped at one update/frame.
   addEventListener("pointermove", (e) => {
+    if (reducedMotion.matches || !canAnimateBackground) return;
     latestMouseX = e.clientX;
     latestMouseY = e.clientY;
     if (mouseRAF) return;
