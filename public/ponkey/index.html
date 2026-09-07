@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#1b1647">
+<meta name="description" content="キーボードをぽんぽんたたくと、おとやもじ、イラストがとびだすあそび。タップでも楽しめます。">
+<title>PonKey! — キーボードを好き放題たたこう</title>
+<style>
+  :root {
+    --mx: 50vw;
+    --my: 42vh;
+    --kx: 50vw;
+    --ky: 50vh;
+    --h1: 312;
+    --h2: 192;
+    --h3: 48;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+
+  body {
+    position: fixed;
+    inset: 0;
+    background: #17143d;
+    font-family: ui-rounded, "Hiragino Maru Gothic ProN", "Hiragino Kaku Gothic ProN",
+                 system-ui, -apple-system, sans-serif;
+  }
+
+  /* Light-weight "Antigravity-ish" reactive background.
+     No canvas, no JS animation loop: only CSS gradients + transform/transition. */
+  #bg {
+    position: absolute;
+    inset: -12%;
+    overflow: hidden;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at var(--mx) var(--my),
+        hsla(var(--h1), 95%, 66%, .58) 0%,
+        hsla(var(--h1), 95%, 60%, .20) 18%,
+        transparent 42%),
+      radial-gradient(circle at var(--kx) var(--ky),
+        hsla(var(--h2), 100%, 66%, .50) 0%,
+        hsla(var(--h2), 100%, 60%, .16) 22%,
+        transparent 48%),
+      radial-gradient(circle at 75% 18%,
+        hsla(var(--h3), 100%, 68%, .28) 0%,
+        transparent 36%),
+      linear-gradient(135deg,
+        hsl(calc(var(--h2) + 60), 50%, 11%),
+        hsl(calc(var(--h1) - 40), 55%, 15%) 52%,
+        hsl(calc(var(--h3) + 20), 48%, 12%));
+    filter: saturate(1.18);
+    transform: scale(1.06);
+    transition:
+      background-position .18s ease-out,
+      filter .22s ease-out;
+  }
+
+  #bg::before,
+  #bg::after {
+    content: "";
+    position: absolute;
+    width: 52vw;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: .26;
+    will-change: transform;
+    transition: transform .22s ease-out, background .35s ease-out;
+  }
+
+  #bg::before {
+    left: calc(var(--mx) - 26vw);
+    top: calc(var(--my) - 26vw);
+    background: hsl(var(--h1) 95% 64%);
+    transform: translate3d(0,0,0) scale(1.05);
+  }
+
+  #bg::after {
+    left: calc(var(--kx) - 22vw);
+    top: calc(var(--ky) - 22vw);
+    width: 44vw;
+    background: hsl(var(--h2) 100% 62%);
+    transform: translate3d(0,0,0) scale(.9);
+  }
+
+  #stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    contain: strict;
+  }
+
+  .thing {
+    position: absolute;
+    left: 0;
+    top: 0;
+    will-change: transform, opacity;
+    pointer-events: none;
+    transform-origin: center;
+    line-height: 1;
+    font-weight: 900;
+    text-shadow: 0 5px 14px rgba(0,0,0,.18);
+  }
+
+  .illustration {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--iw);
+    height: var(--iw);
+    object-fit: contain;
+    pointer-events: none;
+    will-change: transform, opacity;
+    transform-origin: center;
+    filter: drop-shadow(0 12px 18px rgba(28,18,70,.22));
+  }
+
+  .illustration.pop {
+    animation: illustrationPop 1100ms cubic-bezier(.16,.84,.24,1) forwards;
+  }
+
+  .illustration.fly {
+    animation: illustrationFly 1350ms cubic-bezier(.12,.72,.18,1) forwards;
+  }
+
+  .illustration.bounce {
+    animation: illustrationBounce 1250ms cubic-bezier(.14,.8,.22,1) forwards;
+  }
+
+  @keyframes illustrationPop {
+    0%   { transform: translate(var(--x), var(--y)) scale(.12) rotate(-15deg); opacity: 0; }
+    24%  { transform: translate(var(--x), calc(var(--y) - 22px)) scale(1.18) rotate(7deg); opacity: 1; }
+    66%  { transform: translate(calc(var(--x) + var(--idx)), calc(var(--y) - 65px)) scale(1) rotate(-4deg); opacity: 1; }
+    100% { transform: translate(calc(var(--x) + var(--idx2)), calc(var(--y) - 110px)) scale(.82) rotate(12deg); opacity: 0; }
+  }
+
+  @keyframes illustrationFly {
+    0%   { transform: translate(calc(var(--x) - 150px), calc(var(--y) + 75px)) scale(.6) rotate(-18deg); opacity: 0; }
+    16%  { opacity: 1; }
+    70%  { transform: translate(calc(var(--x) + 45px), calc(var(--y) - 60px)) scale(1.05) rotate(5deg); opacity: 1; }
+    100% { transform: translate(calc(var(--x) + 180px), calc(var(--y) - 155px)) scale(.8) rotate(18deg); opacity: 0; }
+  }
+
+  @keyframes illustrationBounce {
+    0%   { transform: translate(var(--x), var(--y)) scale(.15); opacity: 0; }
+    20%  { transform: translate(var(--x), calc(var(--y) - 70px)) scale(1.16); opacity: 1; }
+    42%  { transform: translate(var(--x), calc(var(--y) + 4px)) scale(.92); }
+    62%  { transform: translate(var(--x), calc(var(--y) - 35px)) scale(1.05); }
+    80%  { transform: translate(var(--x), var(--y)) scale(1); opacity: 1; }
+    100% { transform: translate(var(--x), calc(var(--y) + 20px)) scale(.88); opacity: 0; }
+  }
+
+  .pop   { animation: pop 850ms cubic-bezier(.18,.8,.25,1) forwards; }
+  .boing { animation: boing 1100ms cubic-bezier(.15,.8,.25,1) forwards; }
+  .zoom  { animation: zoom 800ms ease-out forwards; }
+  .float { animation: floatAway 1250ms ease-out forwards; }
+
+  @keyframes pop {
+    0%   { transform: translate(var(--x), var(--y)) scale(.15) rotate(var(--r0)); opacity: 0; }
+    18%  { transform: translate(var(--x), calc(var(--y) - 30px)) scale(1.25) rotate(var(--r1)); opacity: 1; }
+    58%  { transform: translate(calc(var(--x) + var(--dx)), calc(var(--y) - 110px)) scale(1) rotate(var(--r2)); opacity: 1; }
+    100% { transform: translate(calc(var(--x) + var(--dx2)), calc(var(--y) + 70px)) scale(.75) rotate(var(--r3)); opacity: 0; }
+  }
+
+  @keyframes boing {
+    0%   { transform: translate(var(--x), var(--y)) scale(.25); opacity: 0; }
+    16%  { transform: translate(var(--x), calc(var(--y) - 65px)) scale(1.45); opacity: 1; }
+    34%  { transform: translate(var(--x), calc(var(--y) + 8px)) scale(.9); }
+    52%  { transform: translate(var(--x), calc(var(--y) - 36px)) scale(1.12); }
+    70%  { transform: translate(var(--x), var(--y)) scale(1); opacity: 1; }
+    100% { transform: translate(var(--x), calc(var(--y) + 18px)) scale(.9); opacity: 0; }
+  }
+
+  @keyframes zoom {
+    0%   { transform: translate(var(--x), var(--y)) scale(.1) rotate(-18deg); opacity: 0; }
+    28%  { transform: translate(var(--x), var(--y)) scale(1.65) rotate(8deg); opacity: 1; }
+    55%  { transform: translate(var(--x), var(--y)) scale(1.15) rotate(-4deg); }
+    100% { transform: translate(var(--x), var(--y)) scale(2.1) rotate(10deg); opacity: 0; }
+  }
+
+  @keyframes floatAway {
+    0%   { transform: translate(var(--x), var(--y)) scale(.4) rotate(var(--r0)); opacity: 0; }
+    18%  { transform: translate(var(--x), var(--y)) scale(1.1) rotate(0deg); opacity: 1; }
+    100% { transform: translate(calc(var(--x) + var(--dx)), calc(var(--y) - 180px)) scale(.9) rotate(var(--r3)); opacity: 0; }
+  }
+
+  /* A visible "history" made from the actual keys, instead of a numeric counter. */
+  #pile {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .pile-key {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: var(--size);
+    height: var(--size);
+    display: grid;
+    place-items: center;
+    border-radius: 26%;
+    font-size: calc(var(--size) * .57);
+    font-weight: 1000;
+    line-height: 1;
+    color: white;
+    background:
+      linear-gradient(145deg,
+        hsla(var(--ph), 95%, 72%, .95),
+        hsla(calc(var(--ph) + 35), 90%, 57%, .90));
+    border: 1px solid rgba(255,255,255,.33);
+    box-shadow:
+      0 6px 15px rgba(0,0,0,.17),
+      inset 0 1px rgba(255,255,255,.45);
+    transform:
+      translate3d(var(--px), calc(-1 * var(--py)), 0)
+      rotate(var(--pr));
+    animation: fallIntoPile .46s cubic-bezier(.2,.8,.3,1.14) both;
+    opacity: .96;
+  }
+
+  @keyframes fallIntoPile {
+    from {
+      transform:
+        translate3d(var(--px), calc(-1 * var(--py) - 150px), 0)
+        rotate(calc(var(--pr) - 28deg))
+        scale(1.18);
+      opacity: 0;
+    }
+  }
+
+  #logo {
+    position: absolute;
+    top: max(18px, env(safe-area-inset-top));
+    left: 22px;
+    color: rgba(255,255,255,.48);
+    font-size: clamp(18px, 3vw, 30px);
+    font-weight: 1000;
+    letter-spacing: -.05em;
+    pointer-events: none;
+    text-shadow: 0 2px 10px rgba(0,0,0,.12);
+  }
+
+  #pile-label {
+    position: absolute;
+    right: 20px;
+    bottom: 16px;
+    z-index: 2;
+    color: rgba(255,255,255,.52);
+    font-size: clamp(12px, 1.8vw, 17px);
+    font-weight: 900;
+    pointer-events: none;
+    text-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+
+  #home-link {
+    position: absolute;
+    top: max(16px, env(safe-area-inset-top));
+    right: max(16px, env(safe-area-inset-right));
+    z-index: 20;
+    padding: 12px 16px;
+    border: 1px solid rgba(255,255,255,.4);
+    border-radius: 999px;
+    background: #29234f;
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  #home-link:hover { background: #453977; }
+  #home-link:focus-visible { outline: 3px solid #ffe36e; outline-offset: 4px; }
+
+  #hint {
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    transform: translate(-50%, -50%);
+    color: rgba(255,255,255,.78);
+    font-weight: 900;
+    font-size: clamp(17px, 2.5vw, 25px);
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity .4s;
+    text-shadow: 0 3px 16px rgba(0,0,0,.2);
+  }
+
+  #start {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    border: 0;
+    padding: 24px;
+    color: white;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(238,92,189,.48), transparent 34%),
+      radial-gradient(circle at 75% 40%, rgba(68,213,255,.35), transparent 38%),
+      #181441;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  #start .wrap {
+    max-width: 700px;
+    margin: auto;
+    text-align: center;
+  }
+
+  #start .title {
+    font-size: clamp(66px, 14vw, 150px);
+    font-weight: 1000;
+    line-height: .9;
+    letter-spacing: -.08em;
+  }
+
+  #start .sub {
+    margin-top: 26px;
+    font-size: clamp(19px, 3vw, 30px);
+    font-weight: 800;
+    line-height: 1.65;
+  }
+
+  #start .go {
+    display: inline-block;
+    margin-top: 30px;
+    padding: 14px 24px;
+    border-radius: 999px;
+    background: white;
+    color: #17143d;
+    font-size: clamp(19px, 3vw, 28px);
+    font-weight: 1000;
+  }
+
+
+  #unicorn-event {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    pointer-events: none;
+    opacity: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+
+  #unicorn-event.show {
+    animation: unicornEvent 2200ms ease-in-out both;
+  }
+
+  #unicorn-event img {
+    width: min(58vw, 680px);
+    height: min(58vw, 680px);
+    object-fit: contain;
+    transform: scale(.2) rotate(-10deg);
+    filter: drop-shadow(0 24px 34px rgba(35,20,85,.30));
+    animation: unicornCharge 2200ms cubic-bezier(.16,.82,.22,1) both;
+  }
+
+  @keyframes unicornCharge {
+    0%   { transform: translateX(-55vw) scale(.45) rotate(-16deg); }
+    28%  { transform: translateX(-8vw) scale(1.05) rotate(5deg); }
+    65%  { transform: translateX(6vw) scale(1.12) rotate(-3deg); }
+    100% { transform: translateX(58vw) scale(.65) rotate(16deg); }
+  }
+
+  #unicorn-event .boom {
+    position: absolute;
+    left: 50%;
+    bottom: 8vh;
+    transform: translateX(-50%);
+    font-size: clamp(42px, 9vw, 110px);
+    font-weight: 1000;
+    color: white;
+    white-space: nowrap;
+    text-shadow: 0 6px 22px rgba(51,24,100,.42);
+  }
+
+  @keyframes unicornEvent {
+    0%   { opacity: 0; transform: scale(.96); }
+    12%  { opacity: 1; transform: scale(1); }
+    72%  { opacity: 1; transform: scale(1.015); }
+    100% { opacity: 0; transform: scale(1.04); }
+  }
+
+  .pile-key.swept {
+    animation: sweptAway 720ms cubic-bezier(.16,.8,.24,1) forwards !important;
+  }
+
+  @keyframes sweptAway {
+    0%   { opacity: .96; }
+    28%  { opacity: 1; }
+    100% {
+      transform:
+        translate3d(
+          calc(var(--px) + var(--sweep-x)),
+          calc(-1 * var(--py) - 68vh),
+          0
+        )
+        rotate(var(--sweep-r))
+        scale(.7);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #bg::before, #bg::after { transition: none; }
+    .thing { animation-duration: .35s !important; }
+    .pile-key { animation-duration: .2s; }
+  }
+</style>
+</head>
+<body>
+  <div id="bg"></div>
+  <a id="home-link" href="../">← あそびばへ</a>
+
+  <main id="stage" aria-label="PonKey game">
+    <div id="logo">PonKey!</div>
+    <div id="hint">どのキーでも おしてみて！</div>
+    <div id="pile"></div>
+    <div id="pile-label">たたいた文字の山</div>
+    <div id="unicorn-event"><img src="assets/unicorn.png" alt=""><div class="boom">どーん！</div></div>
+  </main>
+
+  <button id="start" aria-label="PonKeyをはじめる">
+    <div class="wrap">
+      <div class="title">PonKey!</div>
+      <div class="sub">キーボードを すきなだけ<br>ぽんぽん たたこう！</div>
+      <div class="go">タップして はじめる</div>
+    </div>
+  </button>
+
+<script>
+(() => {
+  "use strict";
+
+  const root = document.documentElement;
+  const stage = document.querySelector("#stage");
+  const pile = document.querySelector("#pile");
+  const start = document.querySelector("#start");
+  const hint = document.querySelector("#hint");
+  const unicornEvent = document.querySelector("#unicorn-event");
+  const homeLink = document.querySelector("#home-link");
+
+  const illustrations = [
+    "unicorn", "dog", "cat", "penguin", "rocket", "star", "rainbow", "castle"
+  ];
+  const words = ["ぽん！","わーい！","ぴかっ！","どーん！","びよーん！","キラキラ！","やったー！","もういっかい！"];
+  const colors = ["#ff74b8","#78e8ff","#ffe36e","#a98cff","#8af0a5","#ff9d76","#ffffff"];
+
+  const MAX_THINGS = 32;
+  const LANES = 24;
+
+  let active = [];
+  let pileKeys = [];
+  let laneHeights = new Array(LANES).fill(0);
+  let started = false;
+  let audio = null;
+  let counter = 0;
+  let mouseRAF = 0;
+  let latestMouseX = innerWidth / 2;
+  let latestMouseY = innerHeight / 2;
+
+  function random(min, max) { return min + Math.random() * (max - min); }
+  function choose(a) { return a[(Math.random() * a.length) | 0]; }
+
+  function visibleKey(e) {
+    const k = e.key || "";
+    if (k === " ") return "●";
+    if (k === "Enter") return "↵";
+    if (k === "Backspace") return "←";
+    if (k === "Tab") return "↹";
+    if (k === "Escape") return "★";
+    if (k === "ArrowUp") return "↑";
+    if (k === "ArrowDown") return "↓";
+    if (k === "ArrowLeft") return "←";
+    if (k === "ArrowRight") return "→";
+    if (k.length === 1) return k.toUpperCase();
+    return "★";
+  }
+
+  function ensureAudio() {
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === "suspended") audio.resume();
+  }
+
+  function sound(seed) {
+    ensureAudio();
+    const notes = [262, 294, 330, 392, 440, 523, 587, 659, 784];
+    const now = audio.currentTime;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+
+    osc.type = "sine";
+    osc.frequency.value = notes[Math.abs(seed) % notes.length];
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.068, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+
+    osc.connect(gain).connect(audio.destination);
+    osc.start(now);
+    osc.stop(now + 0.17);
+  }
+
+  function setReactiveColor(x, y, seed = counter) {
+    root.style.setProperty("--kx", `${x}px`);
+    root.style.setProperty("--ky", `${y}px`);
+    root.style.setProperty("--h1", String((seed * 47 + 300) % 360));
+    root.style.setProperty("--h2", String((seed * 67 + 175) % 360));
+    root.style.setProperty("--h3", String((seed * 29 + 35) % 360));
+  }
+
+  function addThing(text, type = null, big = false, x = null, y = null) {
+    if (active.length >= MAX_THINGS) active.shift()?.remove();
+
+    const el = document.createElement("div");
+    const animation = type || choose(["pop","boing","zoom","float"]);
+    const w = innerWidth;
+    const h = innerHeight;
+    const px = x ?? random(30, Math.max(31, w - 170));
+    const py = y ?? random(70, Math.max(71, h - 220));
+
+    el.className = `thing ${animation}`;
+    el.textContent = text;
+    el.style.color = choose(colors);
+    el.style.fontSize = big ? `${random(90, 170)}px` : `${random(42, 100)}px`;
+
+    el.style.setProperty("--x", `${px}px`);
+    el.style.setProperty("--y", `${py}px`);
+    el.style.setProperty("--dx", `${random(-100,100)}px`);
+    el.style.setProperty("--dx2", `${random(-150,150)}px`);
+    el.style.setProperty("--r0", `${random(-25,25)}deg`);
+    el.style.setProperty("--r1", `${random(-10,10)}deg`);
+    el.style.setProperty("--r2", `${random(-25,25)}deg`);
+    el.style.setProperty("--r3", `${random(-55,55)}deg`);
+
+    stage.appendChild(el);
+    active.push(el);
+
+    // The most recently born object also pushes the background glow.
+    setReactiveColor(px, py, counter);
+
+    el.addEventListener("animationend", () => {
+      el.remove();
+      const i = active.indexOf(el);
+      if (i >= 0) active.splice(i, 1);
+    }, { once: true });
+  }
+
+  function addIllustration(name = null, x = null, y = null, kind = null) {
+    const asset = name || choose(illustrations);
+    const el = document.createElement("img");
+    const px = x ?? random(innerWidth * .08, innerWidth * .78);
+    const py = y ?? random(innerHeight * .10, innerHeight * .58);
+    const size = random(120, Math.min(245, innerWidth * .22));
+    const animation = kind || (
+      asset === "rocket" ? "fly" :
+      ["dog","cat","penguin"].includes(asset) ? "bounce" :
+      "pop"
+    );
+
+    el.className = `illustration ${animation}`;
+    el.src = `assets/${asset}.png`;
+    el.alt = "";
+    el.draggable = false;
+    el.style.setProperty("--iw", `${size}px`);
+    el.style.setProperty("--x", `${px}px`);
+    el.style.setProperty("--y", `${py}px`);
+    el.style.setProperty("--idx", `${random(-55,55)}px`);
+    el.style.setProperty("--idx2", `${random(-110,110)}px`);
+
+    stage.appendChild(el);
+    setReactiveColor(px + size / 2, py + size / 2, counter + illustrations.indexOf(asset));
+
+    el.addEventListener("animationend", () => el.remove(), { once: true });
+  }
+
+  function addToPile(text, hitX = innerWidth / 2) {
+    const size = Math.max(28, Math.min(46, innerWidth / 26));
+    const laneWidth = innerWidth / LANES;
+
+    // Same simple stacking feel as the first version: pick a nearby lane and pile upward.
+    const centerLane = Math.max(0, Math.min(LANES - 1, Math.floor(hitX / laneWidth)));
+    const lane = Math.max(0, Math.min(LANES - 1,
+      centerLane + Math.floor(random(-2.2, 2.2))
+    ));
+
+    const x = lane * laneWidth + random(-laneWidth * .14, laneWidth * .14);
+    const y = laneHeights[lane] * (size * .70) + random(0, 5);
+    laneHeights[lane]++;
+
+    const el = document.createElement("div");
+    el.className = "pile-key";
+    el.textContent = text;
+    el.style.setProperty("--size", `${size}px`);
+    el.style.setProperty("--px", `${x}px`);
+    el.style.setProperty("--py", `${y}px`);
+    el.style.setProperty("--pr", `${random(-17,17)}deg`);
+    el.style.setProperty("--ph", String((counter * 43 + lane * 19) % 360));
+
+    pile.appendChild(el);
+    pileKeys.push(el);
+  }
+
+  function unicornSweep() {
+    if (!pileKeys.length) return;
+
+    unicornEvent.classList.remove("show");
+    void unicornEvent.offsetWidth;
+    unicornEvent.classList.add("show");
+
+    pileKeys.forEach((el, i) => {
+      el.style.setProperty("--sweep-x", `${random(-180, 180)}px`);
+      el.style.setProperty("--sweep-r", `${random(-160, 160)}deg`);
+      setTimeout(() => el.classList.add("swept"), i * 12);
+    });
+
+    const oldKeys = pileKeys;
+    pileKeys = [];
+    laneHeights = new Array(LANES).fill(0);
+
+    setTimeout(() => oldKeys.forEach(el => el.remove()), 1050);
+    setTimeout(() => unicornEvent.classList.remove("show"), 2250);
+  }
+
+  function celebrate(e) {
+    counter++;
+    const key = visibleKey(e);
+
+    const x = random(innerWidth * .08, innerWidth * .82);
+    const y = random(innerHeight * .12, innerHeight * .68);
+
+    addThing(key, null, true, x, y);
+    addToPile(key, x);
+
+    if (counter % 2 === 0) addIllustration();
+    if (counter % 5 === 0) { addThing(choose(words), "boing"); addIllustration(); }
+    if (counter % 17 === 0) {
+      unicornSweep();
+    }
+
+    const seed = [...(e.code || e.key || "x")]
+      .reduce((n,c) => n + c.charCodeAt(0), 0);
+
+    sound(seed + counter);
+    hint.style.opacity = "0";
+  }
+
+  async function begin() {
+    if (started) return;
+    started = true;
+    start.remove();
+
+    try {
+      ensureAudio();
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+      }
+    } catch (_) {}
+
+    addIllustration("rainbow", innerWidth * .39, innerHeight * .27, "pop");
+    addThing("さあ たたこう！", "boing", false, innerWidth * .28, innerHeight * .57);
+  }
+
+  start.addEventListener("click", begin, { passive: true });
+
+  addEventListener("keydown", (e) => {
+    // Keep navigation and browser shortcuts available alongside the game.
+    if (e.target === homeLink || e.key === "Tab" || e.metaKey || e.ctrlKey || e.altKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!started) begin();
+    celebrate(e);
+  }, { capture: true });
+
+  addEventListener("keyup", (e) => {
+    if (e.target === homeLink || e.key === "Tab" || e.metaKey || e.ctrlKey || e.altKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, { capture: true });
+
+  ["contextmenu","dragstart","drop","selectstart"].forEach(name => {
+    addEventListener(name, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { capture: true });
+  });
+
+  // Mouse movement changes only CSS variables, and is capped at one update/frame.
+  addEventListener("pointermove", (e) => {
+    latestMouseX = e.clientX;
+    latestMouseY = e.clientY;
+    if (mouseRAF) return;
+
+    mouseRAF = requestAnimationFrame(() => {
+      root.style.setProperty("--mx", `${latestMouseX}px`);
+      root.style.setProperty("--my", `${latestMouseY}px`);
+      mouseRAF = 0;
+    });
+  }, { passive: true });
+
+  // Tap/click also creates a reaction without adding to the keyboard pile.
+  addEventListener("pointerdown", (e) => {
+    if (e.target.closest("a")) return;
+    if (!started) return;
+    addIllustration(null, e.clientX - 70, e.clientY - 70);
+    setReactiveColor(e.clientX, e.clientY, counter + 1);
+    sound((e.clientX + e.clientY) | 0);
+  }, { passive: true });
+
+  addEventListener("resize", () => {
+    // Keep existing pile positions untouched; the next unicorn event clears the board naturally.
+  }, { passive: true });
+
+})();
+</script>
+</body>
+</html>

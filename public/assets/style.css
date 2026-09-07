@@ -1,0 +1,81 @@
+:root {
+  color-scheme: light;
+  font-family: ui-rounded, "Hiragino Maru Gothic ProN", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+  color: #292047;
+  background: #f6f4ff;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: inherit; }
+
+.site-header, main, footer {
+  width: min(1060px, calc(100% - 48px));
+  margin-inline: auto;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-block: 30px;
+  border-bottom: 1px solid #ded9ee;
+}
+
+.brand { font-size: 1.5rem; font-weight: 900; text-decoration: none; }
+.brand span { color: #7855d6; }
+.header-note { font-size: .875rem; color: #665b7c; }
+.intro { padding-block: 52px 30px; }
+.eyebrow { color: #6344b6; font-weight: 700; }
+h1 { margin: 18px 0; font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.5; letter-spacing: .03em; }
+.intro > p:last-child { color: #665b7c; line-height: 1.8; }
+
+.games { list-style: none; margin: 0; padding: 0; display: grid; gap: 28px; }
+.game-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  text-decoration: none;
+  border: 2px solid #e1dcee;
+  border-radius: 28px;
+  background: white;
+  box-shadow: 0 8px 0 #e9e3f5;
+  transition: transform .18s, border-color .18s;
+}
+.game-card:hover { transform: translateY(-4px); border-color: #9475dc; }
+a:focus-visible { outline: 4px solid #7046cf; outline-offset: 6px; }
+.game-art {
+  position: relative;
+  min-height: 310px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 78% 66%, #5c4387, transparent 65%), linear-gradient(130deg, #291e54, #292556);
+}
+.game-wordmark { position: absolute; left: 28px; top: 24px; color: white; font-size: 2.75rem; font-weight: 900; letter-spacing: -.06em; }
+.game-art img { position: absolute; width: 245px; height: 245px; object-fit: contain; right: 22px; bottom: 8px; transform: rotate(8deg); }
+.key { position: absolute; display: grid; place-items: center; width: 52px; height: 56px; border-radius: 13px; font-size: 1.75rem; font-weight: 900; box-shadow: 0 5px 0 #0003; }
+.key-p { left: 32px; bottom: 86px; background: #ff99cb; transform: rotate(-12deg); }
+.key-o { left: 96px; bottom: 35px; background: #ffe383; transform: rotate(9deg); }
+.key-n { left: 27px; bottom: 17px; background: #87deef; transform: rotate(-5deg); }
+.game-info { padding: 36px; align-self: center; }
+.game-input { margin-top: 0; color: #665b7c; font-size: .875rem; line-height: 1.8; }
+h2 { margin: 12px 0; font-size: clamp(1.35rem, 3vw, 1.8rem); line-height: 1.5; }
+.game-info > p { line-height: 1.9; }
+.play { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-top: 24px; padding: 13px 22px; border-radius: 14px; background: #7248cb; color: white; font-size: 1.125rem; font-weight: 800; }
+footer { padding-block: 44px 30px; color: #665b7c; font-size: .875rem; text-align: center; line-height: 1.8; }
+
+@media (max-width: 680px) {
+  .site-header, main, footer { width: calc(100% - 32px); }
+  .site-header { padding-block: 22px; flex-wrap: wrap; gap: 10px; }
+  .intro { padding-block: 28px 22px; }
+  .game-card { grid-template-columns: minmax(0, 1fr); }
+  .game-art { min-height: 280px; }
+  .game-art img { width: 220px; height: 220px; right: 10px; }
+  .game-info { padding: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-card { transition: none; }
+  .game-card:hover { transform: none; }
+}
